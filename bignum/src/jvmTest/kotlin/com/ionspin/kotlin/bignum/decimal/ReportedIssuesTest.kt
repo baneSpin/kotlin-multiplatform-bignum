@@ -20,4 +20,27 @@ class ReportedIssuesTest {
         val res = a.multiply(b).roundToDigitPositionAfterDecimalPoint(2, RoundingMode.ROUND_HALF_AWAY_FROM_ZERO)
         assertEquals(res.toStringExpanded(), javaRes.toPlainString())
     }
+
+    @Test
+    fun testDivision() {
+        val a = 1.08589200008919E+4
+        val b = 1.085892300018812E+5
+
+        val aOverB = a / b
+        println("a/b=${aOverB}")
+
+        println(String.format("%16.8E",aOverB))
+
+        val a2 = BigDecimal.fromDouble(a)
+        val b2 = BigDecimal.fromDouble(b)
+
+        RoundingMode.entries.filter { it == RoundingMode.AWAY_FROM_ZERO }.forEach { mode ->
+            println("mode: $mode")
+            listOf(5L, 6L, 7L).forEach { precision ->
+                val a2OverB2 = a2.divide(b2, DecimalMode(precision, mode))
+                println("\tprec: $precision, a2/b2=${a2OverB2}")
+            }
+            println()
+        }
+    }
 }
