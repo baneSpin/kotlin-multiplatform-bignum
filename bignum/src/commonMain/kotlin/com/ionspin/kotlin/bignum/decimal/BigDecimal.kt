@@ -1318,23 +1318,34 @@ class BigDecimal private constructor(
             }
 
             val divRem = thisPrepared divrem other.significand
-            val result = divRem.quotient
-            if (result == BigInteger.ZERO) {
+            val quotient = divRem.quotient
+            if (quotient == BigInteger.ZERO) {
                 newExponent--
             }
-            val exponentModifier = result.numberOfDecimalDigits() - resolvedDecimalMode.decimalPrecision
+            val exponentModifier = quotient.numberOfDecimalDigits() - resolvedDecimalMode.decimalPrecision
             val discarded = divRem.remainder * other.significand
+
+            // quotient had more digits then desired precision and had to be modified
+            val exponentAdjustedQuotient = when {
+                exponentModifier > 0 -> quotient / 10.toBigInteger().pow(exponentModifier)
+                exponentModifier < 0 -> quotient * 10.toBigInteger().pow(exponentModifier.absoluteValue)
+                else -> quotient
+            }
 
             return if (usingScale) {
                 BigDecimal(
-                    roundDiscarded(result, discarded, resolvedDecimalMode),
+                    roundDiscarded(exponentAdjustedQuotient, discarded, resolvedDecimalMode),
                     newExponent + exponentModifier,
-                    resolvedDecimalMode.copy(decimalPrecision = result.numberOfDecimalDigits())
+                    resolvedDecimalMode.copy(decimalPrecision = quotient.numberOfDecimalDigits())
                 )
             } else {
+                val significand = roundDiscarded(exponentAdjustedQuotient, discarded, resolvedDecimalMode)
+                // significand had more digits and had so power had to be modified
+                val expMod = significand.numberOfDecimalDigits() - exponentAdjustedQuotient.numberOfDecimalDigits()
+//                println("expMod $expMod")
                 BigDecimal(
-                    roundDiscarded(result, discarded, resolvedDecimalMode),
-                    newExponent + exponentModifier,
+                    significand,
+                    newExponent + exponentModifier + expMod,
                     resolvedDecimalMode
                 )
             }
