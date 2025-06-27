@@ -1311,26 +1311,38 @@ class BigDecimal private constructor(
             val desiredPrecision = resolvedDecimalMode.decimalPrecision
 
             val power = desiredPrecision - this.precision + other.precision
+            val significandTimes10 = this.significand * 10
             val thisPrepared = when {
-                power > 0 -> this.significand * 10.toBigInteger().pow(power)
-                power < 0 -> this.significand / 10.toBigInteger().pow(power.absoluteValue)
-                else -> this.significand
+                power > 0 -> significandTimes10 * 10.toBigInteger().pow(power)
+                power < 0 -> significandTimes10 / 10.toBigInteger().pow(power.absoluteValue)
+                else -> significandTimes10
             }
 
             val divRem = thisPrepared divrem other.significand
-            val quotient = divRem.quotient
+            val morePreciseQuotient = divRem.quotient
+            val quotient = morePreciseQuotient / 10
             if (quotient == BigInteger.ZERO) {
                 newExponent--
             }
+            val divremDiscarded = morePreciseQuotient - quotient * 10
             val exponentModifier = quotient.numberOfDecimalDigits() - resolvedDecimalMode.decimalPrecision
-            val discarded = divRem.remainder * other.significand
+//            val discarded = divRem.remainder * other.significand
 
             // quotient had more digits then desired precision and had to be modified
-            val exponentAdjustedQuotient = when {
-                exponentModifier > 0 -> quotient / 10.toBigInteger().pow(exponentModifier)
-                exponentModifier < 0 -> quotient * 10.toBigInteger().pow(exponentModifier.absoluteValue)
-                else -> quotient
+            val (exponentAdjustedQuotient, discarded)  = when {
+                exponentModifier > 0 -> {
+//                    quotient / 10.toBigInteger().pow(exponentModifier)
+                    val (exponentQuotient, exponentRemainder) = quotient divrem 10.toBigInteger().pow(exponentModifier)
+                    Pair(exponentQuotient, exponentRemainder)
+                }
+                exponentModifier < 0 -> {
+                    val exponentQuotient = quotient * 10.toBigInteger().pow(exponentModifier.absoluteValue)
+                    Pair(exponentQuotient, BigInteger.ZERO)
+                }
+                else -> Pair(quotient, divremDiscarded)
             }
+
+            println("discarded $discarded")
 
             return if (usingScale) {
                 BigDecimal(
