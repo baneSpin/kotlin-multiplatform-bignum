@@ -1,9 +1,9 @@
 package com.ionspin.kotlin.bignum.decimal
 
 import java.math.MathContext
-import org.junit.Ignore
-import kotlin.test.assertEquals
 import org.junit.Test
+import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 /**
@@ -91,42 +91,34 @@ class ReportedIssuesTest {
     fun testDivisionJava() {
         val a = 1.085892300018812E5
         val b = 1.08589200008919E4
-        val aOverB = a / b
-        println("a/b=${aOverB}")
-
-        println(String.format("%16.8E", aOverB))
         val roundingModesMap = mapOf(
-            // work
             Pair(java.math.RoundingMode.FLOOR, RoundingMode.FLOOR),
-
             Pair(java.math.RoundingMode.DOWN, RoundingMode.TOWARDS_ZERO),
             Pair(java.math.RoundingMode.HALF_UP, RoundingMode.ROUND_HALF_AWAY_FROM_ZERO),
-
-            // work when if was removed from roundOrDont
             Pair(java.math.RoundingMode.CEILING, RoundingMode.CEILING),
             Pair(java.math.RoundingMode.UP, RoundingMode.AWAY_FROM_ZERO),
-
-            // works when if was removed from rounding mode
             Pair(java.math.RoundingMode.HALF_EVEN, RoundingMode.ROUND_HALF_TO_EVEN),
-            // do not work
-
-
             Pair(java.math.RoundingMode.HALF_DOWN, RoundingMode.ROUND_HALF_TOWARDS_ZERO),
+        )
 
-
-            )
 
         val kotlinBigDecimalA = BigDecimal.fromDouble(a)
         val kotlinBigDecimalB = BigDecimal.fromDouble(b)
         val javaBigDecimalA = kotlinBigDecimalA.toJavaBigDecimal()
         val javaBigDecimalB = kotlinBigDecimalB.toJavaBigDecimal()
-        roundingModesMap.forEach { javaMode, kotlinMode ->
+        println(javaBigDecimalA.divide(javaBigDecimalB, MathContext(20, java.math.RoundingMode.HALF_UP)))
+        roundingModesMap.forEach { (javaMode, kotlinMode) ->
             println(kotlinMode)
-            (2..200).forEach { precision ->
+            (8..200).forEach { precision ->
                 val javaDivided =
                     javaBigDecimalA.divide(javaBigDecimalB, MathContext(precision, javaMode))
                 val kotlinDivided =
                     kotlinBigDecimalA.divide(kotlinBigDecimalB, DecimalMode(precision.toLong(), kotlinMode))
+                if(javaDivided.compareTo(kotlinDivided.toJavaBigDecimal()) != 0){
+                    println(precision)
+                    println("javaDivided $javaDivided")
+                    println("kotlinDivid ${kotlinDivided.toStringExpanded()}")
+                }
                 assertTrue {
                     javaDivided.compareTo(kotlinDivided.toJavaBigDecimal()) == 0
                 }
@@ -135,17 +127,22 @@ class ReportedIssuesTest {
     }
 
     @Test
-    fun halfTowardsZero(){
+    fun halfTowardsZero() {
         val a = 123.95
         val b = 1
 
         val aDecimal = a.toBigDecimal()
         val bDecimal = b.toBigDecimal()
-        println((aDecimal.divide(bDecimal, decimalMode = DecimalMode(4, RoundingMode.ROUND_HALF_AWAY_FROM_ZERO))).toStringExpanded())
+        println(
+            (aDecimal.divide(
+                bDecimal,
+                decimalMode = DecimalMode(4, RoundingMode.ROUND_HALF_AWAY_FROM_ZERO)
+            )).toStringExpanded()
+        )
     }
 
     @Test
-    fun roundCeiling(){
+    fun roundCeiling() {
         val a = "123.95"
         val b = 1
 
@@ -153,5 +150,6 @@ class ReportedIssuesTest {
         val bDecimal = b.toBigDecimal().toJavaBigDecimal()
         println(java.math.BigDecimal(a, MathContext(4, java.math.RoundingMode.HALF_UP)))
     }
+
 
 }

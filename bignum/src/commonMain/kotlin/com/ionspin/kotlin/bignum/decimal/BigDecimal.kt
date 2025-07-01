@@ -209,7 +209,6 @@ class BigDecimal private constructor(
 //            }
             val decider = determineDecider(remainder)
             val isEven = result % 2 == BigInteger.ZERO
-            // check what was significand in old when
             val modifiedResult = roundWithDecider(result, decimalMode.roundingMode, significand.sign, decider, isEven)
 
             return modifiedResult
@@ -1372,33 +1371,31 @@ class BigDecimal private constructor(
             val remainder = divRem.remainder
             val decider = when {
                 remainder == BigInteger.ZERO -> null
-                remainder * 2 < other.significand -> SignificantDecider.LESS_THAN_FIVE
-                remainder * 2 > other.significand -> SignificantDecider.MORE_THAN_FIVE
-                remainder * 2 == other.significand -> SignificantDecider.FIVE
+                remainder.abs() * 2 < other.significand.abs() -> SignificantDecider.LESS_THAN_FIVE
+                remainder.abs() * 2 > other.significand.abs() -> SignificantDecider.MORE_THAN_FIVE
+                remainder.abs() * 2 == other.significand.abs() -> SignificantDecider.FIVE
                 else -> throw RuntimeException("Unexpected result.")
             }
             if (quotient == BigInteger.ZERO) {
                 newExponent--
             }
             val exponentModifier = quotient.numberOfDecimalDigits() - resolvedDecimalMode.decimalPrecision
-//            val discarded = divRem.remainder * other.significand
 
             // quotient had more digits then desired precision and had to be modified
             val (exponentAdjustedQuotient, newDecider) = when {
                 exponentModifier > 0 -> {
-//                    quotient / 10.toBigInteger().pow(exponentModifier)
                     val (exponentQuotient, exponentRemainder) = quotient divrem 10.toBigInteger().pow(exponentModifier)
                     val border = BigInteger.TEN.pow(exponentRemainder.numberOfDecimalDigits() - 1) * 5
                     val newDecider = when {
-                        exponentRemainder < border -> {
+                        exponentRemainder.abs() < border -> {
                             SignificantDecider.LESS_THAN_FIVE
                         }
 
-                        exponentRemainder > border -> {
+                        exponentRemainder.abs() > border -> {
                             SignificantDecider.MORE_THAN_FIVE
                         }
 
-                        exponentRemainder == border -> {
+                        exponentRemainder.abs() == border -> {
                             if (decider == null) {
                                 SignificantDecider.FIVE
                             } else {
@@ -1426,15 +1423,12 @@ class BigDecimal private constructor(
 
             val isEven = exponentAdjustedQuotient % 2 == BigInteger.ZERO
 
-            println("discarded $newDecider")
-
             return if (usingScale) {
                 BigDecimal(
-//                    roundDiscarded(exponentAdjustedQuotient, newDecider, resolvedDecimalMode, exponentModifier),
                     roundWithDecider(
                         exponentAdjustedQuotient,
                         resolvedDecimalMode.roundingMode,
-                        significand.sign,
+                        exponentAdjustedQuotient.sign,
                         newDecider,
                         isEven
                     ),
@@ -1442,17 +1436,15 @@ class BigDecimal private constructor(
                     resolvedDecimalMode.copy(decimalPrecision = quotient.numberOfDecimalDigits())
                 )
             } else {
-//                val significand = roundDiscarded(exponentAdjustedQuotient, discarded, resolvedDecimalMode)
                 val significand = roundWithDecider(
                     exponentAdjustedQuotient,
                     resolvedDecimalMode.roundingMode,
-                    significand.sign,
+                    exponentAdjustedQuotient.sign,
                     newDecider,
                     isEven
                 )
-                // significand had more digits and had so power had to be modified
+                // significand had more digits and had to be modified
                 val expMod = significand.numberOfDecimalDigits() - exponentAdjustedQuotient.numberOfDecimalDigits()
-//                println("expMod $expMod")
                 BigDecimal(
                     significand,
                     newExponent + exponentModifier + expMod,
